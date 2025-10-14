@@ -1,0 +1,87 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+
+namespace LogiTrack.Models;
+
+public class InventoryItem
+{
+    /// <summary>
+    /// Represents an item in the inventory.
+    /// </summary>
+    [Key]
+    public int ItemId { get; set; }
+
+    /// <summary>
+    /// Represents the name of the inventory item.
+    /// </summary>
+    public string Name { get; set; }
+
+    /// <summary>
+    /// Represents the quantity of the inventory item.
+    /// </summary>
+    public int Quantity { get; set; }
+
+    /// <summary>
+    /// Represents the location of the inventory item.
+    /// </summary>
+    public string Location { get; set; }
+
+/// <summary>
+/// Navigation property to the associated order.
+/// </summary>
+    public List<OrderProducts> OrderPr { get; set; }
+
+    /// <summary>
+    /// Constructor to initialize an inventory item.
+    /// </summary>
+    /// <param name="itemId"></param>
+    /// <param name="name"></param>
+    /// <param name="quantity"></param>
+    /// <param name="location"></param>
+    public InventoryItem(int itemId, string name, int quantity, string location)
+    {
+        ItemId = itemId;
+        Name = name;
+        Quantity = quantity;
+        Location = location;
+    }
+
+    /// <summary>
+    /// Returns a string representation of the inventory item.
+    /// </summary>
+    /// <returns>String representation of the inventory item.</returns>
+    /// <remarks></remarks>
+    public override string ToString()
+    {
+        return $"ItemId: {ItemId}, Name: {Name}, Quantity: {Quantity}, Location: {Location}";
+    }
+
+    /// <summary>
+    /// Updates the quantity of the inventory item.
+    /// </summary>
+    /// <param name="newQuantity"></param>
+    /// <returns></returns>
+    public void UpdateQuantity(int newQuantity)
+    {
+        Quantity = newQuantity;
+    }
+
+    /// <summary>
+    /// Updates the location of the inventory item.
+    /// </summary>
+    /// <param name="newLocation"></param>
+    public void UpdateLocation(string newLocation)
+    {
+        Location = newLocation;
+    }
+
+    /// <summary>
+    /// Displays the inventory item information to the console.
+    /// </summary>
+    public void DisplayInfo()
+    {
+        Console.WriteLine("Item: Pallet Jack | Quantity: 12 | Location: Warehouse A");
+    }
+}
