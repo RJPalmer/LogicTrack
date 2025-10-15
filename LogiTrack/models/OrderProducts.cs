@@ -9,6 +9,15 @@ namespace LogiTrack.Models;
 public class OrderProducts
 {
     /// <summary>
+    /// Constructor to initialize an OrderProducts instance.
+    /// </summary>
+    public OrderProducts()
+    {
+        Order = new Order();
+        InventoryItem = new InventoryItem();
+    }
+
+    /// <summary>
     /// The ID of the order.
     /// </summary>
     public int OrderId { get; set; }

@@ -44,8 +44,8 @@ public class EfIntegrationTests : IDisposable
                 // Seed data
                 var seedItems = new List<InventoryItem>
                 {
-                    new InventoryItem(101, "TestWidget", 1, "T1"),
-                    new InventoryItem(102, "TestGadget", 2, "T2"),
+                    new InventoryItem("TestWidget", 1, "T1"),
+                    new InventoryItem("TestGadget", 2, "T2"),
                 };
 
                 ctx.InventoryItems.AddRange(seedItems);
@@ -62,8 +62,8 @@ public class EfIntegrationTests : IDisposable
 
             var output = sw.ToString();
             Assert.Contains("InventoryItems (2)", output);
-            Assert.Contains("ItemId: 101", output);
-            Assert.Contains("ItemId: 102", output);
+            Assert.Contains("Name: TestWidget", output);
+            Assert.Contains("Name: TestGadget", output);
         }
         finally
         {

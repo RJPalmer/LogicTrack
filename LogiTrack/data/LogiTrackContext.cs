@@ -11,12 +11,12 @@ public class LogiTrackContext : DbContext
     /// <summary>
     /// Inventory items in the database.
     /// </summary>
-    public DbSet<InventoryItem> InventoryItems { get; set; }
+    public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
 
     /// <summary>
     /// Orders in the database.
     /// </summary>
-    public DbSet<Order> Orders { get; set; }
+    public DbSet<Order> Orders { get; set; } = null!;
 
     public LogiTrackContext()
     {
@@ -47,6 +47,14 @@ public class LogiTrackContext : DbContext
     {
         modelBuilder.Entity<InventoryItem>()
         .ToTable("InventoryItems")
+        .HasKey(i => i.ItemId);
+
+        // Ensure EF treats ItemId as database-generated (autoincrement)
+        modelBuilder.Entity<InventoryItem>()
+            .Property(i => i.ItemId)
+            .ValueGeneratedOnAdd();
+
+        modelBuilder.Entity<InventoryItem>()
         .HasMany(i => i.OrderPr)
         .WithOne(op => op.InventoryItem)
         .HasForeignKey(op => op.ItemId);

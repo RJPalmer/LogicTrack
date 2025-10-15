@@ -5,10 +5,14 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// We don't register the DbContext with DI here because LogiTrackContext
-// configures itself via OnConfiguring. Instead we'll instantiate it manually
-// for a quick startup test.
+// Register LogiTrackContext with DI so other services/controllers can get it.
+var connectionString = builder.Configuration.GetConnectionString("LogiTrack")
+    ?? "Data Source=logitrack.db";
+builder.Services.AddDbContext<LogiTrackContext>(options =>
+    options.UseSqlite(connectionString));
+
 builder.Services.AddOpenApi();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -20,25 +24,28 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.MapControllers();
 // --- Quick EF Core sanity test at startup ---
 try
 {
-    Console.WriteLine("Starting EF Core sanity check...");
-    using (var ctx = new LogiTrackContext())
+    Console.WriteLine("Starting EF Core sanity check (using DI-scoped DbContext)...");
+    using (var scope = app.Services.CreateScope())
     {
-    // Recreate a clean database for the sanity test to avoid leftover bad data
-    // (WARNING: this deletes the local database file 'logitrack.db').
-    ctx.Database.EnsureDeleted();
-    ctx.Database.EnsureCreated();
+        var ctx = scope.ServiceProvider.GetRequiredService<LogiTrackContext>();
+
+        // Recreate a clean database for the sanity test to avoid leftover bad data
+        // (WARNING: this deletes the local database file 'logitrack.db').
+        ctx.Database.EnsureDeleted();
+        ctx.Database.EnsureCreated();
 
         // Seed test data if none exists.
         if (!ctx.InventoryItems.Any())
         {
             var seedItems = new List<InventoryItem>
             {
-                new InventoryItem(1, "Widget", 10, "A1"),
-                new InventoryItem(2, "Gadget", 5, "B2"),
-                new InventoryItem(3, "Bolt", 100, "C3"),
+                new InventoryItem("Widget", 10, "A1"),
+                new InventoryItem("Gadget", 5, "B2"),
+                new InventoryItem("Bolt", 100, "C3"),
             };
 
             ctx.InventoryItems.AddRange(seedItems);
