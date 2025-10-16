@@ -6,12 +6,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using LogiTrack.Models;
+using System.Net.Http.Headers;
 
 namespace LogiTrackTest;
 
 public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly HttpClient _client;
 
     public InventoryControllerEndpointTests(WebApplicationFactory<Program> factory)
     {
@@ -37,16 +39,36 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
                 db.Database.EnsureCreated();
             });
         });
+
+        _client = _factory.CreateClient();
+        InitializeClientAsync().GetAwaiter().GetResult();
+    }
+
+    private async Task InitializeClientAsync()
+    {
+        var registerResp = await _client.PostAsJsonAsync("/api/auth/register", new
+        {
+            Email = "testuser@example.com",
+            Password = "Test1234!",
+            ConfirmPassword = "Test1234!"
+        });
+        registerResp.EnsureSuccessStatusCode();
+
+        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
+        loginResp.EnsureSuccessStatusCode();
+        var loginBody = await loginResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(loginBody);
+        Assert.True(loginBody.ContainsKey("token"), "Login response should contain a Token");
+        var token = loginBody["token"];
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     [Fact]
     public async Task PostInventoryItem_ReturnsCreated_WithLocationAndGeneratedId()
     {
-        var client = _factory.CreateClient();
-
         var newItem = new InventoryItem("Endpoint Widget", 7, "Z1");
 
-        var resp = await client.PostAsJsonAsync("/api/inventory", newItem);
+        var resp = await _client.PostAsJsonAsync("/api/inventory", newItem);
 
         resp.EnsureSuccessStatusCode();
         Assert.Equal(System.Net.HttpStatusCode.Created, resp.StatusCode);
@@ -60,14 +82,14 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         Assert.True(created.ItemId > 0, "Generated ItemId should be greater than 0");
         Assert.Equal(newItem.Name, created.Name);
 
-    // Verify GET /api/inventory/{id} returns the same item
-    var getResp = await client.GetAsync(resp.Headers.Location);
-    getResp.EnsureSuccessStatusCode();
-    var fetched = await getResp.Content.ReadFromJsonAsync<InventoryItem>();
-    Assert.NotNull(fetched);
-    Assert.Equal(created.ItemId, fetched.ItemId);
-    Assert.Equal(created.Name, fetched.Name);
-    Assert.Equal(created.Quantity, fetched.Quantity);
-    Assert.Equal(created.Location, fetched.Location);
+        // Verify GET /api/inventory/{id} returns the same item
+        var getResp = await _client.GetAsync(resp.Headers.Location);
+        getResp.EnsureSuccessStatusCode();
+        var fetched = await getResp.Content.ReadFromJsonAsync<InventoryItem>();
+        Assert.NotNull(fetched);
+        Assert.Equal(created.ItemId, fetched.ItemId);
+        Assert.Equal(created.Name, fetched.Name);
+        Assert.Equal(created.Quantity, fetched.Quantity);
+        Assert.Equal(created.Location, fetched.Location);
     }
 }

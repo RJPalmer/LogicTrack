@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LogiTrack.Models;
 using LogiTrack.Data;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LogiTrack.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class InventoryController : ControllerBase
 {
@@ -56,6 +58,7 @@ public class InventoryController : ControllerBase
     /// Deletes a specific inventory item by ID.
     /// </summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> DeleteInventoryItem(int id)
     {
         var item = await _context.InventoryItems.FindAsync(id);

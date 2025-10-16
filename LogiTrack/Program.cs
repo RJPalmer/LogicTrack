@@ -1,6 +1,11 @@
 using LogiTrack.Data;
 using LogiTrack.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using LogiTrack.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +18,71 @@ builder.Services.AddDbContext<LogiTrackContext>(options =>
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
+    {
+        // Password policy
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequiredLength = 8;
+
+        // Lockout settings
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
+
+        // User settings
+        options.User.RequireUniqueEmail = true;
+
+        // Require confirmed email before login (optional)
+        options.SignIn.RequireConfirmedEmail = true;
+    })
+    .AddEntityFrameworkStores<LogiTrackContext>()
+    .AddDefaultTokenProviders();
+
+// Configure JWT settings from configuration (add to appsettings.json or user secrets)
+var jwtSection = builder.Configuration.GetSection("JwtSettings");
+// Bind JwtSettings from configuration (appsettings, user-secrets, environment variables)
+var jwtSettings = new JwtSettings();
+jwtSection.Bind(jwtSettings);
+
+// Allow overriding the secret with an environment variable or user secret named: JwtSettings__Secret
+var envSecret = builder.Configuration["JwtSettings:Secret"];
+if (!string.IsNullOrEmpty(envSecret)) jwtSettings.Secret = envSecret;
+
+if (string.IsNullOrWhiteSpace(jwtSettings.Secret) || jwtSettings.Secret == "ReplaceWithAStrongSecretUsedFromUserSecretsOrEnv")
+{
+    // For security: if no real secret is provided, warn and use a temporary dev key (do not use in prod)
+    Console.WriteLine("WARNING: JWT secret is not configured. Use user-secrets or env var JwtSettings__Secret for production.");
+    jwtSettings.Secret = jwtSettings.Secret ?? "dev-temp-secret-please-change";
+}
+
+builder.Services.Configure<JwtSettings>(jwtSection);
+builder.Services.AddSingleton(jwtSettings);
+builder.Services.AddScoped<JwtService>();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

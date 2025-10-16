@@ -1,12 +1,13 @@
-using LogiTrack.Models;
-using Microsoft.EntityFrameworkCore;
-
 namespace LogiTrack.Data;
 
+using LogiTrack.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 /// <summary>
 /// Database context for LogiTrack application.
 /// </summary>
-public class LogiTrackContext : DbContext
+public class LogiTrackContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>
 {
     /// <summary>
     /// Inventory items in the database.
@@ -72,5 +73,7 @@ public class LogiTrackContext : DbContext
         .HasForeignKey(op => op.ItemId)
         .OnDelete(DeleteBehavior.Cascade)
         .IsRequired();
+
+        base.OnModelCreating(modelBuilder);
     }
 }
