@@ -50,8 +50,8 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
     {
         _client = _factory.CreateClient();
 
-        // Register the test user
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new { Email = "testuser@example.com", Password = "Test1234!" });
+        // Register the test user with a Manager role
+        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new { Email = "testuser@example.com", Password = "Test1234!", Roles = new[] { "Manager" }     });
         registerResponse.EnsureSuccessStatusCode();
 
         // Login the test user

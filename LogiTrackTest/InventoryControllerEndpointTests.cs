@@ -13,7 +13,8 @@ namespace LogiTrackTest;
 public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
+    private  HttpClient _client;
+    private static readonly string[] value = new[] { "Manager" };
 
     public InventoryControllerEndpointTests(WebApplicationFactory<Program> factory)
     {
@@ -40,23 +41,22 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
             });
         });
 
-        _client = _factory.CreateClient();
+        //_client = _factory.CreateClient();
         InitializeClientAsync().GetAwaiter().GetResult();
     }
 
     private async Task InitializeClientAsync()
     {
-        var registerResp = await _client.PostAsJsonAsync("/api/auth/register", new
-        {
-            Email = "testuser@example.com",
-            Password = "Test1234!",
-            ConfirmPassword = "Test1234!"
-        });
-        registerResp.EnsureSuccessStatusCode();
+        _client = _factory.CreateClient();
+        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new { Email = "testuser@example.com", Password = "Test1234!", Roles = new[] { "Manager" } });
+        var registerBody = await registerResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(registerBody);
+        Assert.True(registerBody.ContainsKey("message"), "Register response should contain a Message");
+        registerResponse.EnsureSuccessStatusCode();
 
-        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
-        loginResp.EnsureSuccessStatusCode();
-        var loginBody = await loginResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
+        loginResponse.EnsureSuccessStatusCode();
+        var loginBody = await loginResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         Assert.NotNull(loginBody);
         Assert.True(loginBody.ContainsKey("token"), "Login response should contain a Token");
         var token = loginBody["token"];
@@ -69,7 +69,10 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         var newItem = new InventoryItem("Endpoint Widget", 7, "Z1");
 
         var resp = await _client.PostAsJsonAsync("/api/inventory", newItem);
-
+        if(!resp.IsSuccessStatusCode){
+            var errorContent = await resp.Content.ReadAsStringAsync();
+            Assert.Fail($"Request failed with status {resp.StatusCode}: {errorContent}");
+        }
         resp.EnsureSuccessStatusCode();
         Assert.Equal(System.Net.HttpStatusCode.Created, resp.StatusCode);
 
