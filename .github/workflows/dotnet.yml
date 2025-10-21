@@ -5,9 +5,9 @@ name: .NET
 
 on:
   push:
-    branches: [ "RJPalmer-patch-1" ]
+    branches: [ "RJPalmer-patch-1", "capstone-pt4", "main" ]
   pull_request:
-    branches: [ "capstone-pt4" ]
+    branches: [ "capstone-pt4", "main" ]
 
 jobs:
   build:
