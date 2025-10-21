@@ -66,6 +66,41 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
         Assert.Empty(orders);   // Should be empty initially
     }
 
+    /// <summary>
+    /// Tests getting a specific order by ID.
+    /// </summary>
+    [Fact]
+    public async Task GetOrder_ReturnsOkResult()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        string token = await AuthorizeClient(client);
+
+        // Call protected endpoint with Bearer token
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //add an order to fetch
+        var newOrder = new Order
+        {
+            CustomerName = "Jane Smith",
+            DatePlaced = DateTime.UtcNow
+        };
+        var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
+        postResp.EnsureSuccessStatusCode();
+        
+        // Act
+        var response = await client.GetAsync("/api/orders/1");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var order = await response.Content.ReadFromJsonAsync<Order>();
+        Assert.NotNull(order);
+    }
+
+    /// <summary>
+    /// Tests adding a new order.
+    /// </summary>
     [Fact]
     public async Task PostOrder_AddsNewOrder_ReturnsCreated()
     {
@@ -118,4 +153,5 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
         var token = loginBody["token"];
         return token;
     }
+
 }
