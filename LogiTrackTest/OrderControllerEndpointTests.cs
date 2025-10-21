@@ -64,6 +64,22 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
         var orders = await response.Content.ReadFromJsonAsync<List<Order>>();
         Assert.NotNull(orders);
         Assert.Empty(orders);   // Should be empty initially
+
+        // Add an order to verify retrieval
+        var newOrder = new Order
+        {
+            CustomerName = "Alice Johnson",
+            DatePlaced = DateTime.UtcNow
+        };
+        var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
+        postResp.EnsureSuccessStatusCode();
+
+        // Act again
+        var response2 = await client.GetAsync("/api/orders");
+        response2.EnsureSuccessStatusCode();
+        var orders2 = await response2.Content.ReadFromJsonAsync<List<Order>>();
+        Assert.NotNull(orders2);
+        Assert.Single(orders2);
     }
 
     /// <summary>
@@ -88,7 +104,7 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
         };
         var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
         postResp.EnsureSuccessStatusCode();
-        
+
         // Act
         var response = await client.GetAsync("/api/orders/1");
 
@@ -130,7 +146,66 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
         Assert.True(createdOrder.OrderId > 0);
         Assert.Equal(newOrder.CustomerName, createdOrder.CustomerName);
     }
+
+    /// <summary>
+    /// Tests adding a null order returns BadRequest.
+    /// </summary>
+    [Fact]
+    public async Task PostOrder_NullOrder_ReturnsBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        string token = await AuthorizeClient(client);
+
+        // Call protected endpoint with Bearer token
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/orders", (Order?)null);
+
+        // Assert
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    ///<summary>
+    /// Tests removing an order
+    /// </summary>
+    [Fact]
+    public async Task DeleteOrder_RemovesOrder_ReturnsNoContent()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        string token = await AuthorizeClient(client);
+
+        // Call protected endpoint with Bearer token
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //add an order to delete
+        var newOrder = new Order
+        {
+            CustomerName = "Mark Spencer",
+            DatePlaced = DateTime.UtcNow
+        };
+
+        var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
+        postResp.EnsureSuccessStatusCode();
+
+        var createdOrder = await postResp.Content.ReadFromJsonAsync<Order>();
+        Assert.NotNull(createdOrder);
+        Assert.True(createdOrder.OrderId > 0);
+
+        // Act
+        var response = await client.DeleteAsync($"/api/orders/{createdOrder.OrderId}");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    /// <summary>
     /// Helper to authorize client and get JWT token
+    /// </summary>
     /// <param name="client"></param>
     /// <returns>JWT token string</returns>
     private async Task<string> AuthorizeClient(HttpClient client)
