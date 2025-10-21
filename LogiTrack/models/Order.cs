@@ -39,6 +39,15 @@ public class Order
     }
 
     /// <summary>
+    /// Constructor to initialize an order with a customer name.
+    /// </summary>
+    public Order(string customerName)
+    {
+        CustomerName = customerName;
+        DatePlaced = DateTime.Now;
+        OrderProducts = new List<OrderProducts>();
+    }
+    /// <summary>
     /// Adds an item to the order.
     /// </summary>
     /// <param name="item"></param>

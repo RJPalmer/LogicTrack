@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using LogiTrack.Services;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +16,6 @@ var connectionString = builder.Configuration.GetConnectionString("LogiTrack")
 builder.Services.AddDbContext<LogiTrackContext>(options =>
     options.UseSqlite(connectionString));
 
-builder.Services.AddMemoryCache();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
@@ -41,8 +39,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
         options.SignIn.RequireConfirmedEmail = true;
     })
     .AddEntityFrameworkStores<LogiTrackContext>()
-    .AddDefaultTokenProviders()
-    .AddRoles<IdentityRole<int>>();
+    .AddDefaultTokenProviders();
+
 // Configure JWT settings from configuration (add to appsettings.json or user secrets)
 var jwtSection = builder.Configuration.GetSection("JwtSettings");
 // Bind JwtSettings from configuration (appsettings, user-secrets, environment variables)
@@ -78,7 +76,6 @@ builder.Services.AddAuthentication(options =>
             ValidateAudience = true,
             ValidAudience = jwtSettings.Audience,
             ValidateIssuerSigningKey = true,
-            RoleClaimType = ClaimTypes.Role,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
@@ -88,30 +85,6 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
-//Preload the Manager role
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
-    var rolesToEnsure = new[] { "Manager", "Staff", "Viewer" };
-
-    foreach (var roleName in rolesToEnsure)
-    {
-        var roleExists = await roleManager.RoleExistsAsync(roleName);
-        if (!roleExists)
-        {
-            var result = await roleManager.CreateAsync(new IdentityRole<int>(roleName));
-            if (result.Succeeded)
-            {
-                Console.WriteLine($"Created role: {roleName}");
-            }
-            else
-            {
-                Console.WriteLine($"Error creating role {roleName}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-            }
-        }
-    }
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -172,7 +145,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
+    var forecast =  Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
