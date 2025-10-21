@@ -26,7 +26,7 @@ public class Order
     /// </summary>
 
 /// <remarks>Navigation property to the associated inventory items.</remarks>
-    public List<OrderProducts> OrderProducts { get; set; }
+    public List<OrderProducts> OrderProducts { get; set; } = new List<OrderProducts>();
 
     /// <summary>
     /// Constructor to initialize an order.

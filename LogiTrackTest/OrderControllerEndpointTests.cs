@@ -28,12 +28,16 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<LogiTrack.Data.LogiTrackContext>));
                if (descriptor != null) services.Remove(descriptor);
 
-               var connection = new SqliteConnection("Data Source=:memory:");
+               var connection = new SqliteConnection("DataSource=:memory:");
                connection.Open();
 
+               services.AddSingleton(connection);
                services.AddDbContext<LogiTrack.Data.LogiTrackContext>(options =>
                    options.UseSqlite(connection));
 
+               //add missing dependency for OrdersController
+               services.AddMemoryCache();
+                
                // Build service provider and create the schema
                var sp = services.BuildServiceProvider();
                using var scope = sp.CreateScope();
@@ -52,15 +56,28 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
 
         string token = await AuthorizeClient(client);
 
+        //create cancellation token
+        CancellationTokenSource cts = new CancellationTokenSource();
+        CancellationToken cancellationToken = cts.Token;
+
+
         // Call protected endpoint with Bearer token
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
 
         // Act
-        var response = await client.GetAsync("/api/orders");
+        var response = await client.GetAsync("/api/orders", cancellationToken);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail($"Request to /api/orders failed: {ex.Message}");
+            //todo implement output logging
+        }
         var orders = await response.Content.ReadFromJsonAsync<List<Order>>();
         Assert.NotNull(orders);
         Assert.Empty(orders);   // Should be empty initially
@@ -204,28 +221,49 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
     }
 
     /// <summary>
-    /// Helper to authorize client and get JWT token
+    /// Helper to authorize client and get JWT token.
+    /// Ensures a consistent test user setup and valid login response.
     /// </summary>
-    /// <param name="client"></param>
+    /// <param name="client">The test HttpClient instance.</param>
     /// <returns>JWT token string</returns>
     private async Task<string> AuthorizeClient(HttpClient client)
     {
-        // Create a test user directly via UserManager
+        const string testEmail = "testuser@example.com";
+        const string testPassword = "Test1234!";
+
+        // Ensure test user exists in the in-memory identity database
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            var testUser = new ApplicationUser { UserName = "testuser@example.com", Email = "testuser@example.com", EmailConfirmed = true };
-            var result = await userManager.CreateAsync(testUser, "Test1234!");
-            Assert.True(result.Succeeded, string.Join(';', result.Errors.Select(e => e.Code)));
+            var existingUser = await userManager.FindByEmailAsync(testEmail);
+
+            if (existingUser == null)
+            {
+                var newUser = new ApplicationUser
+                {
+                    UserName = testEmail,
+                    Email = testEmail,
+                    EmailConfirmed = true
+                };
+
+                var createResult = await userManager.CreateAsync(newUser, testPassword);
+                Assert.True(createResult.Succeeded, $"User creation failed: {string.Join(';', createResult.Errors.Select(e => e.Description))}");
+            }
         }
 
-        // Call login endpoint
-        var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
-        loginResp.EnsureSuccessStatusCode();
-        var loginBody = await loginResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.NotNull(loginBody);
-        Assert.True(loginBody.ContainsKey("token"));
-        var token = loginBody["token"];
+        // Attempt login to get a valid JWT token
+        var loginRequest = new { Email = testEmail, Password = testPassword };
+        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", loginRequest);
+
+        // Assert login success
+        Assert.True(loginResponse.IsSuccessStatusCode, $"Login failed with status {loginResponse.StatusCode}");
+        var responseBody = await loginResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(responseBody);
+        Assert.True(responseBody.ContainsKey("token"), "Login response does not contain 'token' key.");
+
+        string token = responseBody["token"];
+        Assert.False(string.IsNullOrWhiteSpace(token), "Received empty JWT token.");
+
         return token;
     }
 
