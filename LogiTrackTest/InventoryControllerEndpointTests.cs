@@ -92,6 +92,10 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         // Set Bearer token for authorization
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        // Add a test item
+        var testItem = new InventoryItem("Test Item", 3, "X1", 1.99);
+        var postResp = await client.PostAsJsonAsync("/api/inventory", testItem);
+        postResp.EnsureSuccessStatusCode();
         var resp = await client.GetAsync("/api/inventory");
 
         resp.EnsureSuccessStatusCode();
