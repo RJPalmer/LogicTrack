@@ -221,11 +221,92 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
     }
 
     /// <summary>
+    /// Tests updating an existing order.
+    /// </summary>
+    [Fact]
+    public async Task UpdateOrder_UpdatesExistingOrder_ReturnsNoContent()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        string token = await AuthorizeClient(client);
+
+        // Call protected endpoint with Bearer token
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //add an order to update
+        var newOrder = new Order
+        {
+            CustomerName = "Laura Palmer",
+            DatePlaced = DateTime.UtcNow
+        };
+
+        var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
+        postResp.EnsureSuccessStatusCode();
+
+        var createdOrder = await postResp.Content.ReadFromJsonAsync<Order>();
+        Assert.NotNull(createdOrder);
+        Assert.True(createdOrder.OrderId > 0);
+
+        // Modify order details
+        createdOrder.CustomerName = "Laura P.";
+        createdOrder.DatePlaced = DateTime.UtcNow.AddDays(-1);
+
+        // Act
+        var response = await client.PutAsJsonAsync($"/api/orders/{createdOrder.OrderId}", createdOrder);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
+    }
+    /// <summary>
     /// Helper to authorize client and get JWT token.
     /// Ensures a consistent test user setup and valid login response.
     /// </summary>
     /// <param name="client">The test HttpClient instance.</param>
     /// <returns>JWT token string</returns>
+
+    ///<summary>
+    /// Tests adding an item to an order.
+    /// </summary>
+    [Fact]
+    public async Task AddItemToOrder_AddsItem_ReturnsNoContent()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        string token = await AuthorizeClient(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var newOrder = new Order
+        {
+            CustomerName = "Mark Spencer",
+            DatePlaced = DateTime.UtcNow
+        };
+
+        var postResp = await client.PostAsJsonAsync("/api/orders", newOrder);
+        postResp.EnsureSuccessStatusCode();
+
+        var createdOrder = await postResp.Content.ReadFromJsonAsync<Order>();
+        Assert.NotNull(createdOrder);
+        Assert.True(createdOrder.OrderId > 0);
+
+        var itemToAdd = new InventoryItem("New Item", 5, "A1", 19.99);
+        
+        var itemPostResp = await client.PostAsJsonAsync("/api/inventory", itemToAdd);
+        itemPostResp.EnsureSuccessStatusCode();
+
+        var createdItem = await itemPostResp.Content.ReadFromJsonAsync<InventoryItem>();
+        Assert.NotNull(createdItem);
+        Assert.True(createdItem.ItemId > 0);
+
+        // Act
+        var response = await client.PostAsJsonAsync($"/api/orders/{createdOrder.OrderId}/items/{createdItem.ItemId}", itemToAdd);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
+    }
+
     private async Task<string> AuthorizeClient(HttpClient client)
     {
         const string testEmail = "testuser@example.com";

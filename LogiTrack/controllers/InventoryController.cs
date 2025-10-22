@@ -47,7 +47,7 @@ public class InventoryController : ControllerBase
     {
         if (newItem == null) return BadRequest();
         // Create a new entity instance so any client-supplied ItemId is not persisted.
-        var itemToSave = new InventoryItem(newItem.Name, newItem.Quantity, newItem.Location);
+        var itemToSave = new InventoryItem(newItem.Name, newItem.Quantity, newItem.Location, newItem.Price);
         _context.InventoryItems.Add(itemToSave);
         await _context.SaveChangesAsync();
         // Return the newly created entity (with generated ItemId)

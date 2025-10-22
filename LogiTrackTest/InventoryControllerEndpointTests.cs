@@ -53,7 +53,7 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         // Set Bearer token for authorization
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     
-        var newItem = new InventoryItem("Endpoint Widget", 7, "Z1");
+        var newItem = new InventoryItem("Endpoint Widget", 7, "Z1", 4.99);
 
         var resp = await client.PostAsJsonAsync("/api/inventory", newItem);
 

@@ -14,7 +14,7 @@ public class OrderProducts
     public OrderProducts()
     {
         Order = new Order();
-        InventoryItem = new InventoryItem();
+        InventoryItem = new InventoryItem("Example Item", 0, "", 0.01);
     }
 
     /// <summary>

@@ -113,9 +113,9 @@ try
         {
             var seedItems = new List<InventoryItem>
             {
-                new InventoryItem("Widget", 10, "A1"),
-                new InventoryItem("Gadget", 5, "B2"),
-                new InventoryItem("Bolt", 100, "C3"),
+                new InventoryItem("Widget", 10, "A1", 2.99),
+                new InventoryItem("Gadget", 5, "B2", 9.49),
+                new InventoryItem("Bolt", 100, "C3", 0.10),
             };
 
             ctx.InventoryItems.AddRange(seedItems);
