@@ -103,10 +103,8 @@ try
     {
         var ctx = scope.ServiceProvider.GetRequiredService<LogiTrackContext>();
 
-        // Recreate a clean database for the sanity test to avoid leftover bad data
-        // (WARNING: this deletes the local database file 'logitrack.db').
-        ctx.Database.EnsureDeleted();
-        ctx.Database.EnsureCreated();
+
+        ctx.Database.Migrate(); // Applies pending migrations without deleting data
 
         // Seed test data if none exists.
         if (!ctx.InventoryItems.Any())
@@ -145,7 +143,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
+    var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
