@@ -10,14 +10,9 @@ using Microsoft.AspNetCore.Identity;
 
 namespace LogiTrackTest;
 
-/// <summary>
-/// Integration tests for authentication and protected endpoints.
-/// </summary>
 public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
-    private HttpClient _client = null!;
-    private string _token = null!;
 
     public AuthIntegrationTests(WebApplicationFactory<Program> factory)
     {
@@ -42,33 +37,33 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
                 db.Database.EnsureCreated();
             });
         });
-
-        InitializeClientAsync().GetAwaiter().GetResult();
-    }
-
-    private async Task InitializeClientAsync()
-    {
-        _client = _factory.CreateClient();
-
-        // Register the test user
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new { Email = "testuser@example.com", Password = "Test1234!" });
-        registerResponse.EnsureSuccessStatusCode();
-
-        // Login the test user
-        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
-        loginResp.EnsureSuccessStatusCode();
-        var loginBody = await loginResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.NotNull(loginBody);
-        Assert.True(loginBody.ContainsKey("token"), "Login response should contain a Token");
-        _token = loginBody["token"];
-
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
     }
 
     [Fact]
     public async Task LoginAndAccessProtectedEndpoint_ReturnsWhoAmI()
     {
-        var whoResp = await _client.GetAsync("/api/protected/whoami");
+        var client = _factory.CreateClient();
+
+        // Create a test user directly via UserManager
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var testUser = new ApplicationUser { UserName = "testuser@example.com", Email = "testuser@example.com", EmailConfirmed = true };
+            var result = await userManager.CreateAsync(testUser, "Test1234!");
+            Assert.True(result.Succeeded, string.Join(';', result.Errors.Select(e => e.Code)));
+        }
+
+        // Call login endpoint
+        var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { Email = "testuser@example.com", Password = "Test1234!" });
+        loginResp.EnsureSuccessStatusCode();
+        var loginBody = await loginResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(loginBody);
+        Assert.True(loginBody.ContainsKey("token"));
+        var token = loginBody["token"];
+
+        // Call protected endpoint with Bearer token
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var whoResp = await client.GetAsync("/api/protected/whoami");
         whoResp.EnsureSuccessStatusCode();
         var who = await whoResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         Assert.NotNull(who);

@@ -103,19 +103,17 @@ try
     {
         var ctx = scope.ServiceProvider.GetRequiredService<LogiTrackContext>();
 
-        // Recreate a clean database for the sanity test to avoid leftover bad data
-        // (WARNING: this deletes the local database file 'logitrack.db').
-        ctx.Database.EnsureDeleted();
-        ctx.Database.EnsureCreated();
+
+        ctx.Database.Migrate(); // Applies pending migrations without deleting data
 
         // Seed test data if none exists.
         if (!ctx.InventoryItems.Any())
         {
             var seedItems = new List<InventoryItem>
             {
-                new InventoryItem("Widget", 10, "A1"),
-                new InventoryItem("Gadget", 5, "B2"),
-                new InventoryItem("Bolt", 100, "C3"),
+                new InventoryItem("Widget", 10, "A1", 2.99),
+                new InventoryItem("Gadget", 5, "B2", 9.49),
+                new InventoryItem("Bolt", 100, "C3", 0.10),
             };
 
             ctx.InventoryItems.AddRange(seedItems);
@@ -145,7 +143,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
+    var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),

@@ -26,7 +26,7 @@ public class Order
     /// </summary>
 
 /// <remarks>Navigation property to the associated inventory items.</remarks>
-    public List<OrderProducts> OrderProducts { get; set; }
+    public List<OrderProducts> OrderProducts { get; set; } = new List<OrderProducts>();
 
     /// <summary>
     /// Constructor to initialize an order.
@@ -38,6 +38,15 @@ public class Order
         CustomerName = "Unknown";
     }
 
+    /// <summary>
+    /// Constructor to initialize an order with a customer name.
+    /// </summary>
+    public Order(string customerName)
+    {
+        CustomerName = customerName;
+        DatePlaced = DateTime.Now;
+        OrderProducts = new List<OrderProducts>();
+    }
     /// <summary>
     /// Adds an item to the order.
     /// </summary>

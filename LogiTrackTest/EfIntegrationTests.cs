@@ -44,8 +44,8 @@ public class EfIntegrationTests : IDisposable
                 // Seed data
                 var seedItems = new List<InventoryItem>
                 {
-                    new InventoryItem("TestWidget", 1, "T1"),
-                    new InventoryItem("TestGadget", 2, "T2"),
+                    new InventoryItem("TestWidget", 1, "T1", 9.99),
+                    new InventoryItem("TestGadget", 2, "T2", 19.99),
                 };
 
                 ctx.InventoryItems.AddRange(seedItems);

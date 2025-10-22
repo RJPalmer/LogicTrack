@@ -19,6 +19,11 @@ public class LogiTrackContext : IdentityDbContext<ApplicationUser, IdentityRole<
     /// </summary>
     public DbSet<Order> Orders { get; set; } = null!;
 
+    /// <summary>
+    /// Order products in the database.
+    /// </summary>
+    public DbSet<OrderProducts> OrderProducts { get; set; } = null!;
+
     public LogiTrackContext()
     {
     }
