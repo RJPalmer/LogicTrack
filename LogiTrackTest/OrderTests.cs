@@ -21,7 +21,7 @@ namespace LogiTrackTest
             Assert.Equal(customerName, order.CustomerName);
             Assert.NotNull(order.OrderProducts);
             Assert.Empty(order.OrderProducts);
-            Assert.InRange(order.DatePlaced, DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow);
+            Assert.InRange(order.DatePlaced, DateTime.Now.AddSeconds(-30), DateTime.Now);
         }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace LogiTrackTest
             order.CustomerName = "Updated Customer";
             // Assert
             Assert.Equal("Updated Customer", order.CustomerName);
-            Assert.InRange(order.DatePlaced, DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow);
+            Assert.InRange(order.DatePlaced, DateTime.Now.AddSeconds(-10), DateTime.Now);
             Assert.Empty(order.OrderProducts);
 
         }

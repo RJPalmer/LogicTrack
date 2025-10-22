@@ -40,18 +40,24 @@ public class InventoryItem
 /// </summary>
     public List<OrderProducts> OrderPr { get; set; }
 
-    /// <summary>
-    /// Constructor to initialize an inventory item.
+    ///<summary
+    /// Empty Constructor to initialize an inventory item.
     /// </summary>
-    /// <param name="itemId"></param>
-    /// <param name="name"></param>
-    /// <param name="price"></param>
-    /// <param name="quantity"></param>
-    /// <param name="location"></param>
-    // Parameterless constructor required by EF
-    public InventoryItem(string v)
+    public InventoryItem()
     {
         Name = string.Empty;
+        Location = string.Empty;
+        OrderPr = new List<OrderProducts>();
+        Price = 0.0;
+    }
+
+    /// <summary>
+    /// Constructor to initialize an inventory item.
+    /// <paramref name="v"/> is the name of the item.
+    /// </summary>
+    public InventoryItem(string v)
+    {
+        Name = v;
         Location = string.Empty;
         OrderPr = new List<OrderProducts>();
         Price = 0.0;

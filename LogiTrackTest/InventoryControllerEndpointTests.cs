@@ -80,6 +80,59 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         Assert.Equal(created.Location, fetched.Location);
     }
 
+    [Fact]
+    /// <summary>
+    /// Tests GET /api/inventory returns list of items
+    /// </summary>
+    public async Task GetInventoryItems_ReturnsOk_WithListOfItems()
+    {
+        var client = _factory.CreateClient();
+        string token = await AuthorizeClient(client);
+
+        // Set Bearer token for authorization
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var resp = await client.GetAsync("/api/inventory");
+
+        resp.EnsureSuccessStatusCode();
+        var items = await resp.Content.ReadFromJsonAsync<List<InventoryItem>>();
+        Assert.NotNull(items);
+        Assert.True(items.Count > 0);
+    }
+
+    [Fact]
+    /// <summary>
+    /// Tests searching inventory items by name
+    /// </summary>
+    public async Task SearchInventoryItems_ReturnsOk_WithMatchingItems()
+    {
+        var client = _factory.CreateClient();
+        string token = await AuthorizeClient(client);
+
+        // Set Bearer token for authorization
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Add test items
+        var testItems = new List<InventoryItem>
+        {
+            new InventoryItem("Widget A", 5, "S1", 2.99),
+            new InventoryItem("Widget B", 10, "S2", 3.99),
+            new InventoryItem("Gadget C", 8, "S3", 5.99)
+        };
+
+        foreach (var item in testItems)
+        {
+            var postResp = await client.PostAsJsonAsync("/api/inventory", item);
+            postResp.EnsureSuccessStatusCode();
+        }
+
+        var resp = await client.GetAsync("/api/inventory/search?name=Widget");
+
+        resp.EnsureSuccessStatusCode();
+        var items = await resp.Content.ReadFromJsonAsync<List<InventoryItem>>();
+        Assert.NotNull(items);
+        Assert.All(items, item => Assert.Contains("Widget", item.Name, StringComparison.OrdinalIgnoreCase));
+    }
     /// <summary>
     /// Helper to authorize client and get JWT token
     /// </summary>
