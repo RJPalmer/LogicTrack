@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using LogiTrack.Models;
 using Microsoft.AspNetCore.Identity;
+using System.Net;
 
 namespace LogiTrackTest;
 
@@ -39,12 +40,18 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
         });
     }
 
+    /// <summary>
+    /// Tests that a user can log in and access a protected endpoint.
+    /// Assumes a test user with email "testuser@example.com" and password "Test1234!" exists.
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task LoginAndAccessProtectedEndpoint_ReturnsWhoAmI()
     {
         var client = _factory.CreateClient();
 
-        // Create a test user directly via UserManager
+        //Create a test user directly via UserManager
+        //todo: move to sepate test
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -68,5 +75,38 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
         var who = await whoResp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         Assert.NotNull(who);
         Assert.Equal("testuser@example.com", who["email"]);
+    }
+
+    /// <summary>
+    /// Tests that login with invalid credentials returns Unauthorized.
+    /// </summary>
+    /// <returns></returns>
+    [Fact]
+    public async Task LoginWithInvalidCredentials_ReturnsUnauthorized()
+    {
+        var client = _factory.CreateClient();
+
+        // Call login endpoint with invalid credentials
+        var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { Email = "invalid@example.com", Password = "InvalidPassword!" });
+        Assert.Equal(HttpStatusCode.Unauthorized, loginResp.StatusCode);
+    }
+
+    /// <summary>
+    /// Tests that registering a new user returns success.
+    /// </summary>
+    /// <returns></returns>
+    [Fact]
+    public async Task RegisterNewUser_ReturnsSuccess()
+    {
+        var client = _factory.CreateClient();
+
+        var registerResp = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            Email = "newuser@example.com",
+            Password = "NewUser123!",
+            ConfirmPassword = "NewUser123!"
+        });
+
+        registerResp.EnsureSuccessStatusCode();
     }
 }
