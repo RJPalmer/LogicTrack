@@ -15,8 +15,12 @@ namespace LogiTrack.Services
             _provider = provider;
         }
 
+        /// <summary>
+        /// Executes the background synchronization task.
+        /// </summary>
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // Periodically synchronize inventory data every 10 minutes
             while (!stoppingToken.IsCancellationRequested)
             {
                 using var scope = _provider.CreateScope();
@@ -26,7 +30,18 @@ namespace LogiTrack.Services
                 var count = await ctx.InventoryItems.CountAsync(stoppingToken);
                 Console.WriteLine($"[InventorySyncService] Synced {count} inventory items at {DateTime.Now}.");
 
-                await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+                try
+                {
+                    // Wait for 10 minutes before the next synchronization
+                    await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Handle task cancellation
+                    Console.WriteLine($"[InventorySyncService] Task was cancelled at {DateTime.Now}.");
+                    break;
+
+                }
             }
         }
     }
