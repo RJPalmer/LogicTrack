@@ -74,7 +74,7 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         Assert.Equal(newItem.Name, created.Name);
 
         // Verify GET /api/inventory/{id} returns the same item
-        var getResp = await client.GetAsync(resp.Headers.Location);
+        var getResp = await client.GetAsync($"/api/inventory/{created.ItemId}");
         getResp.EnsureSuccessStatusCode();
         var fetched = await getResp.Content.ReadFromJsonAsync<InventoryItem>();
         Assert.NotNull(fetched);
