@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
@@ -22,6 +24,19 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
     {
         _factory = factory.WithWebHostBuilder(builder =>
        {
+           // Ensure Redis is disabled for tests
+           builder.ConfigureAppConfiguration((context, config) =>
+           {
+               config.AddInMemoryCollection(new Dictionary<string, string?>
+               {
+                   ["UseRedis"] = "false",
+                   ["JwtSettings:Secret"] = "test-jwt-secret-0123456789012345",
+                   ["JwtSettings:Issuer"] = "LogiTrackTest",
+                   ["JwtSettings:Audience"] = "LogiTrackTestClients",
+                   ["JwtSettings:ExpMinutes"] = "60"
+               });
+           });
+
            // Replace DB with in-memory Sqlite for integration testing
            builder.ConfigureServices(services =>
            {

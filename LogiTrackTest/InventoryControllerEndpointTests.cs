@@ -5,6 +5,8 @@ using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System;
 using System.Threading.Tasks;
@@ -23,6 +25,19 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            // Ensure Redis is disabled for tests and use in-memory DB
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["UseRedis"] = "false",
+                    ["JwtSettings:Secret"] = "test-jwt-secret-0123456789012345",
+                    ["JwtSettings:Issuer"] = "LogiTrackTest",
+                    ["JwtSettings:Audience"] = "LogiTrackTestClients",
+                    ["JwtSettings:ExpMinutes"] = "60"
+                });
+            });
+
             // Replace DB with in-memory Sqlite for integration testing
             builder.ConfigureServices(services =>
             {

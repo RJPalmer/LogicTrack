@@ -55,7 +55,7 @@ public class InventoryController : ControllerBase
         var cachedItems = await _redisDb.GetStringAsync("inventory_items");
         if (!string.IsNullOrEmpty(cachedItems))
         {
-            var itemsFromCache = System.Text.Json.JsonSerializer.Deserialize<List<InventoryItem>>(cachedItems);
+            var itemsFromCache = System.Text.Json.JsonSerializer.Deserialize<List<InventoryItem>>(cachedItems) ?? new List<InventoryItem>();
             await _redisDb.RefreshAsync("inventory_items");
             return Ok(itemsFromCache);
         }
@@ -82,10 +82,11 @@ public class InventoryController : ControllerBase
             return Ok(itemFromDB);
         }
 
-        var item = System.Text.Json.JsonSerializer.Deserialize<InventoryItem>(cachedItem);
+    var item = System.Text.Json.JsonSerializer.Deserialize<InventoryItem>(cachedItem);
+    if (item == null) return NotFound();
 
-        // Return explicit JSON result to ensure JSON payload
-        return new JsonResult(item);
+    // Return explicit JSON result to ensure JSON payload
+    return new JsonResult(item);
     }
 
     /// <summary>
@@ -123,7 +124,8 @@ public class InventoryController : ControllerBase
             return BadRequest($"Validation or database error: {ex.Message}");
         }
         // Return the newly created entity (with generated ItemId)
-        itemToSave = await _context.InventoryItems.AsNoTracking().FirstOrDefaultAsync(i => i.Name == itemToSave.Name);
+        // Use the existing itemToSave instance which has been updated by SaveChangesAsync with the generated ItemId,
+        // avoiding an additional query that could return null.
         return CreatedAtAction(nameof(GetInventoryItem), new { id = itemToSave.ItemId }, itemToSave);
     }
 

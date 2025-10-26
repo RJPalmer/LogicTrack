@@ -77,15 +77,23 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // -----------------------------
-//  REDIS CACHING
+//  REDIS / DISTRIBUTED CACHING
 // -----------------------------
-var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddStackExchangeRedisCache(options =>
+var useRedis = builder.Configuration.GetValue<bool?>("UseRedis") ?? true;
+if (useRedis)
 {
-    options.Configuration = redisConnection;
-    options.InstanceName = "LogiTrack_";
-
-});
+    var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "LogiTrack_";
+    });
+}
+else
+{
+    // Use in-memory distributed cache for tests or when redis is disabled
+    builder.Services.AddDistributedMemoryCache();
+}
 
 // -----------------------------
 //  BACKGROUND SERVICES
