@@ -94,7 +94,10 @@ public class InventoryController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> AddInventoryItem([FromBody] InventoryItem newItem)
     {
-        if (newItem == null) return BadRequest();
+        if (newItem == null) {
+            Console.WriteLine($"[InventoryController] Invalid inventory item.");
+            return BadRequest();
+        }
         // Create a new entity instance so any client-supplied ItemId is not persisted.
         var itemToSave = new InventoryItem(newItem.Name, newItem.Quantity, newItem.Location, newItem.Price);
         try
