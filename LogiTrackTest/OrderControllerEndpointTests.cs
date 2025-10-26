@@ -29,11 +29,7 @@ public class OrderControllerEndpointTests : IClassFixture<WebApplicationFactory<
            {
                config.AddInMemoryCollection(new Dictionary<string, string?>
                {
-                   ["UseRedis"] = "false",
-                   ["JwtSettings:Secret"] = "test-jwt-secret-0123456789012345",
-                   ["JwtSettings:Issuer"] = "LogiTrackTest",
-                   ["JwtSettings:Audience"] = "LogiTrackTestClients",
-                   ["JwtSettings:ExpMinutes"] = "60"
+                   ["UseRedis"] = "false"
                });
            });
 
