@@ -116,6 +116,7 @@ public class InventoryController : ControllerBase
         }
         catch (System.Exception ex)
         {
+            Console.WriteLine($"[InventoryController] Error occurred while adding inventory item: {ex.Message}");
             return BadRequest($"Validation or database error: {ex.Message}");
         }
         // Return the newly created entity (with generated ItemId)
