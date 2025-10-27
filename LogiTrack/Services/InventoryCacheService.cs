@@ -46,16 +46,35 @@ namespace LogiTrack.Services
         /// </summary>
         public async Task<List<InventoryItem>> GetInventoryAsync()
         {
-            var cachedData = await _cache.GetStringAsync(CacheKey);
+            string? cachedData = null;
+            try
+            {
+                cachedData = await _cache.GetStringAsync(CacheKey);
+            }
+            catch (System.Exception ex)
+            {
+                // Swallow cache exceptions so Redis outages don't break core functionality.
+                Console.WriteLine($"[InventoryCacheService] Warning: failed to read cache: {ex.Message}");
+            }
+
             if (!string.IsNullOrEmpty(cachedData))
             {
                 Console.WriteLine("[Redis] Returning cached inventory data.");
                 return JsonSerializer.Deserialize<List<InventoryItem>>(cachedData)!;
             }
 
-            Console.WriteLine("[Redis] Cache miss — fetching from database.");
+            Console.WriteLine("[Redis] Cache miss or cache unavailable — fetching from database.");
             var items = await _context.InventoryItems.AsNoTracking().ToListAsync();
-            await SetInventoryCacheAsync(items);
+            // Try to update cache, but ignore failures.
+            try
+            {
+                await SetInventoryCacheAsync(items);
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"[InventoryCacheService] Warning: failed to update cache: {ex.Message}");
+            }
+
             return items;
         }
 
@@ -66,7 +85,14 @@ namespace LogiTrack.Services
         {
             _context.InventoryItems.Add(item);
             await _context.SaveChangesAsync();
-            await RefreshInventoryCacheAsync();
+            try
+            {
+                await RefreshInventoryCacheAsync();
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"[InventoryCacheService] Warning: failed to refresh cache after add: {ex.Message}");
+            }
             return item;
         }
 
@@ -76,7 +102,14 @@ namespace LogiTrack.Services
         public async Task RefreshInventoryCacheAsync()
         {
             var items = await _context.InventoryItems.AsNoTracking().ToListAsync();
-            await SetInventoryCacheAsync(items);
+            try
+            {
+                await SetInventoryCacheAsync(items);
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"[InventoryCacheService] Warning: failed to refresh cache: {ex.Message}");
+            }
         }
 
         private async Task SetInventoryCacheAsync(List<InventoryItem> items)

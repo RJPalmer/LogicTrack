@@ -51,16 +51,32 @@ public class InventoryController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetInventoryItems()
     {
-        //retrieve from cache or database
-        var cachedItems = await _redisDb.GetStringAsync("inventory_items");
-        if (!string.IsNullOrEmpty(cachedItems))
+        // Try cache first, but tolerate failures so Redis outages don't break the API.
+        try
         {
-            var itemsFromCache = System.Text.Json.JsonSerializer.Deserialize<List<InventoryItem>>(cachedItems);
-            await _redisDb.RefreshAsync("inventory_items");
-            return Ok(itemsFromCache);
+            var cachedItems = await _redisDb.GetStringAsync("inventory_items");
+            if (!string.IsNullOrEmpty(cachedItems))
+            {
+                var itemsFromCache = System.Text.Json.JsonSerializer.Deserialize<List<InventoryItem>>(cachedItems);
+                try { await _redisDb.RefreshAsync("inventory_items"); } catch { /* ignore refresh errors */ }
+                return Ok(itemsFromCache);
+            }
         }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"[InventoryController] Warning: cache read failed: {ex.Message}");
+        }
+
         var items = await _context.InventoryItems.AsNoTracking().ToListAsync();
-        await _redisDb.SetStringAsync("inventory_items", System.Text.Json.JsonSerializer.Serialize(items));
+        try
+        {
+            await _redisDb.SetStringAsync("inventory_items", System.Text.Json.JsonSerializer.Serialize(items));
+        }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"[InventoryController] Warning: cache write failed: {ex.Message}");
+        }
+
         return Ok(items);
     }
 
@@ -70,22 +86,35 @@ public class InventoryController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetInventoryItem(int id)
     {
-        //retrieve from cache or database
-        var cachedItem = await _redisDb.GetStringAsync($"inventory_item_{id}");
-        if (string.IsNullOrEmpty(cachedItem))
+        try
         {
-            //retrieve from database
-            var itemFromDB = await _context.InventoryItems.AsNoTracking().FirstOrDefaultAsync(i => i.ItemId == id);
-            if (itemFromDB == null) return NotFound();
-            //store in cache
-            await _redisDb.SetStringAsync($"inventory_item_{id}", System.Text.Json.JsonSerializer.Serialize(itemFromDB));
-            return Ok(itemFromDB);
+            var cachedItem = await _redisDb.GetStringAsync($"inventory_item_{id}");
+            if (!string.IsNullOrEmpty(cachedItem))
+            {
+                var item = System.Text.Json.JsonSerializer.Deserialize<InventoryItem>(cachedItem);
+                return new JsonResult(item);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"[InventoryController] Warning: cache read failed for item {id}: {ex.Message}");
         }
 
-        var item = System.Text.Json.JsonSerializer.Deserialize<InventoryItem>(cachedItem);
+        //retrieve from database
+        var itemFromDB = await _context.InventoryItems.AsNoTracking().FirstOrDefaultAsync(i => i.ItemId == id);
+        if (itemFromDB == null) return NotFound();
 
-        // Return explicit JSON result to ensure JSON payload
-        return new JsonResult(item);
+        //store in cache (best-effort)
+        try
+        {
+            await _redisDb.SetStringAsync($"inventory_item_{id}", System.Text.Json.JsonSerializer.Serialize(itemFromDB));
+        }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"[InventoryController] Warning: cache write failed for item {id}: {ex.Message}");
+        }
+
+        return Ok(itemFromDB);
     }
 
     /// <summary>
@@ -110,11 +139,17 @@ public class InventoryController : ControllerBase
             _context.InventoryItems.Add(itemToSave);
             await _context.SaveChangesAsync();
 
-            //update cache
-            await _redisDb.SetStringAsync($"inventory_item_{itemToSave.ItemId}", System.Text.Json.JsonSerializer.Serialize(itemToSave));
-            await _redisDb.SetStringAsync("inventory_items", System.Text.Json.JsonSerializer.Serialize(new List<InventoryItem> { itemToSave }));
-
-            await _redisDb.RefreshAsync("inventory_items");
+            //update cache (best-effort; don't fail the request if cache is down)
+            try
+            {
+                await _redisDb.SetStringAsync($"inventory_item_{itemToSave.ItemId}", System.Text.Json.JsonSerializer.Serialize(itemToSave));
+                await _redisDb.SetStringAsync("inventory_items", System.Text.Json.JsonSerializer.Serialize(new List<InventoryItem> { itemToSave }));
+                try { await _redisDb.RefreshAsync("inventory_items"); } catch { }
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"[InventoryController] Warning: cache update failed after add: {ex.Message}");
+            }
 
         }
         catch (System.Exception ex)
