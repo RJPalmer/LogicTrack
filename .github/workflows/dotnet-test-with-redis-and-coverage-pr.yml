@@ -90,6 +90,5 @@ jobs:
           body-path: ./TestResults/CoverageReport/SummaryGithub.md
           edit-mode: replace
           issue-number: ${{ github.event.pull_request.number }}
-          token: ${{ secrets.PR_COMMENT_TOKEN }}
           path: ./TestResults/CoverageReport/SummaryGithub.md
           edit-mode: replace
