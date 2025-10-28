@@ -82,11 +82,11 @@ jobs:
           echo "## ✅ Test Results and Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "Test results and HTML coverage report have been generated and uploaded as artifacts." >> $GITHUB_STEP_SUMMARY
 
-      - name: Comment coverage summary on PR
-        if: github.event_name == 'pull_request' &&  github.repository_owner == github.actor
+      - name: Comment coverage summary on internal PRs
+        if: github.event_name == 'pull_request' && github.repository_owner == github.actor
         uses: peter-evans/create-or-update-comment@v4
         with:
-          token: ${{ secrets.PR_COMMENT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           body-path: ./TestResults/CoverageReport/SummaryGithub.md
           edit-mode: replace
           issue-number: ${{ github.event.pull_request.number }}
