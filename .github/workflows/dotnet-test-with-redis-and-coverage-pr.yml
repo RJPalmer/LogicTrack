@@ -1,0 +1,94 @@
+name: .NET Build, Test, and Coverage with Redis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for Redis service
+        run: |
+          echo "Waiting for Redis..."
+          until nc -z 127.0.0.1 6379; do sleep 1; done
+          echo "Redis is ready!"
+
+      - name: Run tests with coverage
+        env:
+          ASPNETCORE_ENVIRONMENT: CI
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+        run: |
+          dotnet test --configuration Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            --logger "trx;LogFileName=test_results.trx" \
+            --results-directory ./TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage reports
+        run: |
+          ls ./TestResults/**/coverage.cobertura.xml || (echo "No coverage file found!" && exit 1)
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./TestResults/CoverageReport" \
+            "-reporttypes:HtmlSummary;Cobertura;MarkdownSummaryGithub"
+
+      - name: Upload test results (TRX)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: ./TestResults
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport
+          path: ./TestResults/CoverageReport
+
+      - name: Publish summary to GitHub Actions
+        if: success()
+        run: |
+          echo "## ✅ Test Results and Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "Test results and HTML coverage report have been generated and uploaded as artifacts." >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment coverage summary on PR
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.PR_COMMENT_TOKEN }}
+          body-path: ./TestResults/CoverageReport/SummaryGithub.md
+          edit-mode: replace
+          issue-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.PR_COMMENT_TOKEN }}
+          path: ./TestResults/CoverageReport/SummaryGithub.md
+          edit-mode: replace
