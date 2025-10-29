@@ -4,8 +4,7 @@ on:
   push:
     branches: [ main, capstone_pt5 ]
   pull_request:
-    branches: main
-
+    branches: [main]
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
@@ -22,25 +21,20 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
 
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Wait for Redis service
+      - name: Wait for Redis
         run: |
           echo "Waiting for Redis..."
           until nc -z 127.0.0.1 6379; do sleep 1; done
-          echo "Redis is ready!"
+          echo "Redis ready."
 
       - name: Run tests with coverage
         env:
@@ -64,29 +58,8 @@ jobs:
             -targetdir:"./TestResults/CoverageReport" \
             "-reporttypes:HtmlSummary;Cobertura;MarkdownSummaryGithub"
 
-      - name: Upload test results (TRX)
-        uses: actions/upload-artifact@v4
-        with:
-          name: TestResults
-          path: ./TestResults
-
-      - name: Upload coverage report
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: CoverageReport
           path: ./TestResults/CoverageReport
-
-      - name: Publish summary to GitHub Actions
-        if: success()
-        run: |
-          echo "## ✅ Test Results and Code Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "Test results and HTML coverage report have been generated and uploaded as artifacts." >> $GITHUB_STEP_SUMMARY
-
-      - name: Comment coverage summary on internal PRs
-        if: github.event_name == 'pull_request' && github.repository_owner == github.actor
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          token: ${{ secrets.PR_COMMENT_TOKEN }}
-          body-path: ./TestResults/CoverageReport/SummaryGithub.md
-          edit-mode: replace
-          issue-number: ${{ github.event.pull_request.number }}
