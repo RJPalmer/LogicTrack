@@ -1,11 +1,12 @@
-using System;
-using System.Collections.Generic;
+
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace LogiTrack.Models;
 
+/// <summary>
+/// Represents an item in the inventory.
+/// </summary>
 public class InventoryItem
 {
     /// <summary>
@@ -21,13 +22,15 @@ public class InventoryItem
     public string Name { get; set; }
 
     /// <summary>
-    /// Represents the quantity of the inventory item.
+    /// Represents the quantity of the inventory item. Should not be negative.
     /// </summary>
+    [Range(0, int.MaxValue, ErrorMessage = "Quantity must be a non-negative integer.")]
     public int Quantity { get; set; }
 
     /// <summary>
-    /// Represents the price of the inventory item.
+    /// Represents the price of the inventory item. Must be non-negative and greater than 0.01
     /// </summary>
+    [Range(0.01, double.MaxValue, ErrorMessage = "Price must be a positive number greater than 0.01.")]
     public double Price { get; set; }
 
     /// <summary>
@@ -48,7 +51,7 @@ public class InventoryItem
         Name = string.Empty;
         Location = string.Empty;
         OrderPr = new List<OrderProducts>();
-        Price = 0.0;
+        Price = 0.01;
     }
 
     /// <summary>

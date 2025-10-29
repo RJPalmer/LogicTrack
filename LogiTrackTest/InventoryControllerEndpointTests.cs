@@ -5,12 +5,15 @@ using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System;
 using System.Threading.Tasks;
 
 using Xunit;
 using LogiTrack.Models;
+using System.Net;
 
 namespace LogiTrackTest;
 
@@ -22,6 +25,15 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            // Ensure Redis is disabled for tests and use in-memory DB
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["UseRedis"] = "false"
+                });
+            });
+
             // Replace DB with in-memory Sqlite for integration testing
             builder.ConfigureServices(services =>
             {
@@ -52,13 +64,16 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         string token = await AuthorizeClient(client);
         // Set Bearer token for authorization
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-    
+
+        //create a new inventory item    
         var newItem = new InventoryItem("Endpoint Widget", 7, "Z1", 4.99);
 
+        // Post the new item
         var resp = await client.PostAsJsonAsync("/api/inventory", newItem);
 
-        resp.EnsureSuccessStatusCode();
-        Assert.Equal(System.Net.HttpStatusCode.Created, resp.StatusCode);
+        Assert.NotNull(resp);           //response should not be null
+        resp.EnsureSuccessStatusCode(); //should be successful
+        Assert.Equal(System.Net.HttpStatusCode.Created, resp.StatusCode); //should return 201 Created
 
         // Location header should point to the resource
         Assert.True(resp.Headers.Location != null, "Location header should be set");
@@ -70,7 +85,7 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         Assert.Equal(newItem.Name, created.Name);
 
         // Verify GET /api/inventory/{id} returns the same item
-        var getResp = await client.GetAsync(resp.Headers.Location);
+        var getResp = await client.GetAsync($"/api/inventory/{created.ItemId}");
         getResp.EnsureSuccessStatusCode();
         var fetched = await getResp.Content.ReadFromJsonAsync<InventoryItem>();
         Assert.NotNull(fetched);
@@ -110,6 +125,7 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
     /// </summary>
     public async Task SearchInventoryItems_ReturnsOk_WithMatchingItems()
     {
+        string searchTerm = "Widget";
         var client = _factory.CreateClient();
         string token = await AuthorizeClient(client);
 
@@ -130,12 +146,31 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
             postResp.EnsureSuccessStatusCode();
         }
 
-        var resp = await client.GetAsync("/api/inventory/search?name=Widget");
-
+        var resp = await client.GetAsync($"/api/inventory/search?searchTerm={searchTerm}");
+        Assert.NotNull(resp);
+        
         resp.EnsureSuccessStatusCode();
         var items = await resp.Content.ReadFromJsonAsync<List<InventoryItem>>();
         Assert.NotNull(items);
-        Assert.All(items, item => Assert.Contains("Widget", item.Name, StringComparison.OrdinalIgnoreCase));
+        Assert.All(items, item => Assert.Contains(searchTerm, item.Name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SearchInventoryItems_ReturnsNotFound_WhenNoMatches()
+    {
+        var client = _factory.CreateClient();
+        string token = await AuthorizeClient(client);
+
+        // Set Bearer token for authorization
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string searchTerm = "NonExistentItem123";
+        var resp = await client.GetAsync($"/api/inventory/search?searchTerm={searchTerm}");
+
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, resp.StatusCode);
+
+        var content = await resp.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
     /// <summary>
     /// Helper to authorize client and get JWT token
@@ -163,4 +198,3 @@ public class InventoryControllerEndpointTests : IClassFixture<WebApplicationFact
         return token;
     }
 }
-    

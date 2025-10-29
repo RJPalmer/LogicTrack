@@ -1,0 +1,65 @@
+name: .NET Build, Test, and Coverage with Redis
+
+on:
+  push:
+    branches: [ main, capstone_pt5 ]
+  pull_request:
+    branches: [main]
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for Redis
+        run: |
+          echo "Waiting for Redis..."
+          until nc -z 127.0.0.1 6379; do sleep 1; done
+          echo "Redis ready."
+
+      - name: Run tests with coverage
+        env:
+          ASPNETCORE_ENVIRONMENT: CI
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+        run: |
+          dotnet test --configuration Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            --logger "trx;LogFileName=test_results.trx" \
+            --results-directory ./TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage reports
+        run: |
+          ls ./TestResults/**/coverage.cobertura.xml || (echo "No coverage file found!" && exit 1)
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./TestResults/CoverageReport" \
+            "-reporttypes:HtmlSummary;Cobertura;MarkdownSummaryGithub"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport
+          path: ./TestResults/CoverageReport
